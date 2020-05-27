@@ -12,17 +12,20 @@
  * @license http://www.opensource.org/licenses/mit-license.php MIT License
  */
 use \Workerman\Worker;
-use \Workerman\WebServer;
 
 // composer autoload
 require_once dirname(__DIR__) . '/loader.php';
 
 // WebServer
-$web = new WebServer('http://'.Config\Web::$address.':'.Config\Web::$port);
+$web = new Worker('http://'.Config\Web::$address.':'.Config\Web::$port);
 // WebServer数量
 $web->count = 2;
-// 设置站点根目录
-$web->addRoot(Config\Web::$domain, __DIR__.'/Root');
+
+$web->onMessage = function($connection, $data)
+{
+    // 向浏览器发送hello world
+    $connection->send('hello world');
+};
 
 
 // 如果不是在根目录启动，则运行runAll方法
