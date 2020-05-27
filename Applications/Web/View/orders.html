@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title>订单列表</title>
+  <link rel="stylesheet" href="/layui/css/layui.css">
+  <style>
+    th .layui-table-cell{height: 28px;}
+    .layui-table-cell{
+      height: 56px;
+    }
+  </style>
+</head>
+<body>
+
+<table class="layui-table" lay-data="{url:'/orders/data/', page:false, id:'balanceTable'}" lay-filter="orders">
+  <thead>
+    <tr>
+      <th lay-data="{width:100, align:'center', templet:'#currencyTpl'}">交易币</th>
+      <th lay-data="{align:'right', templet:'#amountTpl'}">持有/可卖</th>
+      <th lay-data="{align:'right', templet:'#usdtTpl'}">成本价/成本值</th>
+      <th lay-data="{align:'right', templet:'#nowTpl'}">现价/现值</th>
+      <th lay-data="{align:'right', templet:'#tateTpl'}">盈亏比/盈亏</th>
+      <th lay-data="{width:80, align:'center', toolbar: '#toolbarOpt'}">操作</th>
+    </tr>
+  </thead>
+</table>
+
+<script type="text/html" id="currencyTpl">
+  <span style="line-height: 56px;font-size: 16px;font-weight: bold;">{{d.currency}}</span>
+</script>
+
+<script type="text/html" id="amountTpl">
+  {{d.amount}}<br />{{d.unfrozen}}
+</script>
+
+<script type="text/html" id="usdtTpl">
+  {{d.usdt_price}}<br />{{d.usdt_amount}}
+</script>
+
+<script type="text/html" id="nowTpl">
+  {{d.now_price}}<br />{{d.now_amount}}
+</script>
+
+<script type="text/html" id="tateTpl">
+  {{d.gainloss_rate}}<br />{{d.gainloss}}
+</script>
+
+<script type="text/html" id="toolbarOpt">
+  <a class="layui-btn layui-btn-xs" lay-event="fresh-usdt">更本</a><br />
+  <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="fresh-now">更现</a>
+</script>
+
+<script src="/layui/layui.js" charset="utf-8"></script>
+<script>
+layui.use(['table','laytpl','form'], function(){
+  var table = layui.table
+  ,laytpl = layui.laytpl
+  ,form = layui.form;
+  
+  var $ = layui.$, active = {
+    reload: function(){
+      var searchAuthor = $('#searchAuthor')
+      ,searchSpAuthor = $('#searchSpAuthor');
+      //执行重载
+      table.reload('userTable', {
+        page: {
+          curr: 1 //重新从第 1 页开始
+        }
+        ,where: {
+          author: searchAuthor.val(),
+          sp_author: searchSpAuthor.val()
+        }
+      }, 'data');
+    }
+    ,dosubmit: function(){ //获取选中数据
+      layer.alert('aaaa');
+    }
+    ,docencel: function(){ //获取选中数目
+      layer.msg('选中了个');
+    }
+    ,add: function(){
+      layer.open({
+        type: 1,
+        title: '添加采集用户',
+        skin: 'layui-layer-rim', //加上边框
+        area: ['420px', '240px'], //宽高
+        content: laytpl($('#addForm').html()).render([])
+      });
+      return false;
+    }
+  };
+
+  table.on('tool(balance)', function(obj){ //注：tool 是工具条事件名，test 是 table 原始容器的属性 lay-filter="对应的值"
+    var data = obj.data; //获得当前行数据
+    var layEvent = obj.event; //获得 lay-event 对应的值（也可以是表头的 event 参数对应的值）
+    var tr = obj.tr; //获得当前行 tr 的 DOM 对象（如果有的话）
+   
+    if(layEvent === 'fresh-now'){ //查看
+      $.ajax({
+            url:'/balance/price/'+data.currency,
+            type:'get',
+            data:{},
+            dataType:"json",
+            beforeSend:function () {
+              this.layerIndex = layer.load(2, { shade: [0.5, '#393D49'] });
+            },
+            success:function(data){
+              if(data.code == 0){
+                layer.msg(data.msg, {
+                  icon: 6,//成功的表情
+                  time: 1500 //1秒关闭（如果不配置，默认是3秒）
+                }, function(){
+                  layer.closeAll();
+                  location.reload();
+                });
+              }else{
+                layer.msg(data.msg,{icon: 5});//失败的表情
+                return;
+              } 
+            },
+            complete: function () {
+              layer.close(this.layerIndex);
+              //layer.closeAll();
+            },
+        });
+    } else if(layEvent === 'del'){ //删除
+      layer.confirm('确定要删除此记录么？', function(index){
+        obj.del(); //删除对应行（tr）的DOM结构，并更新缓存
+        layer.close(index);
+        //向服务端发送删除指令
+        $.ajax({
+            url:'/users/delete',
+            type:'post',
+            data:{id:data.id},
+            dataType:"json",
+            beforeSend:function () {
+              this.layerIndex = layer.load(2, { shade: [0.5, '#393D49'] });
+            },
+            success:function(data){
+              if(data.code == 0){
+                layer.msg(data.msg, {
+                  icon: 6,//成功的表情
+                  time: 1500 //1秒关闭（如果不配置，默认是3秒）
+                }, function(){
+                  layer.closeAll();
+                  location.reload();
+                });
+              }else{
+                layer.msg(data.msg,{icon: 5});//失败的表情
+                return;
+              } 
+            },
+            complete: function () {
+              layer.close(this.layerIndex);
+              //layer.closeAll();
+            },
+        });
+      });
+    } else if(layEvent === 'edit'){ //编辑
+      layer.open({
+        type: 1,
+        title: '编辑采集用户',
+        skin: 'layui-layer-rim', //加上边框
+        area: ['420px', '240px'], //宽高
+        content: laytpl($('#addForm').html()).render(data)
+      });
+    } else if(layEvent === 'LAYTABLE_TIPS'){
+      layer.alert('Hi，头部工具栏扩展的右侧图标。');
+    }
+  });
+
+  form.on('submit(btnsubmit)', function(data){
+    var userInfo = data.field;
+    var url = "/users/save";
+    $.ajax({
+        url:url,
+        type:'post',
+        data:userInfo,
+        dataType:"json",
+        beforeSend:function () {
+          this.layerIndex = layer.load(2, { shade: [0.5, '#393D49'] });
+        },
+        success:function(data){
+          if(data.code == 0){
+            layer.msg(data.msg, {
+              icon: 6,//成功的表情
+              time: 1500 //1秒关闭（如果不配置，默认是3秒）
+            }, function(){
+              layer.closeAll();
+              location.reload();
+            });
+          }else{
+            layer.msg(data.msg,{icon: 5});//失败的表情
+            return;
+          } 
+        },
+        complete: function () {
+          layer.close(this.layerIndex);
+          //layer.closeAll();
+        },
+    });
+    return false;
+  });
+
+  $('.layui-btn').on('click', function(){
+    var type = $(this).data('type');
+    active[type] ? active[type].call(this) : '';
+    return false;
+  });
+
+});
+</script>
+</body>
+</html>
