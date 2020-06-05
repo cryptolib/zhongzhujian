@@ -14,9 +14,6 @@
 use \Workerman\Worker;
 use \GatewayWorker\BusinessWorker;
 
-// 自动加载类
-require_once dirname(__DIR__) . '/loader.php';
-
 // bussinessWorker 进程
 $worker = new BusinessWorker();
 // worker名称

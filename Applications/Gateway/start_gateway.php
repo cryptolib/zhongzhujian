@@ -14,9 +14,6 @@
 use \Workerman\Worker;
 use \GatewayWorker\Gateway;
 
-// 自动加载类
-require_once dirname(__DIR__) . '/loader.php';
-
 // gateway 进程，这里使用Text协议，可以用telnet测试
 $gateway = new Gateway(Config\Gateway::$protocol.'://'.Config\Gateway::$address.':'.Config\Gateway::$port);
 // gateway名称，status方便查看

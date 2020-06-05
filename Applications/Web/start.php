@@ -13,9 +13,6 @@
  */
 use \Workerman\Worker;
 
-// composer autoload
-require_once dirname(__DIR__) . '/loader.php';
-
 // WebServer
 $web = new Worker('http://'.Config\Web::$address.':'.Config\Web::$port);
 // WebServer数量

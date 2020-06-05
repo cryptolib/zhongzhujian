@@ -13,9 +13,6 @@
  * @license http://www.opensource.org/licenses/mit-license.php MIT License
  */
 
-// 自动加载类
-require_once dirname(__DIR__) . '/loader.php';
-
 // TimerWorker
 $worker = new \Workerman\Worker();
 $worker->count = Config\Timer::$worker_count;

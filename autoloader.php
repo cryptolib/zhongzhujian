@@ -1,20 +1,20 @@
 <?php
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 /**
  * Load class by namespace.
  * @param string $name
  * @return boolean
  */
-function myloader($name)
+function autoloader($name)
 {
     $class_path = str_replace('\\', DIRECTORY_SEPARATOR, $name);
     // search from root directory
-    $class_file = dirname(__DIR__) . DIRECTORY_SEPARATOR . $class_path . '.php';
+    $class_file = __DIR__ . DIRECTORY_SEPARATOR . $class_path . '.php';
     if (empty($class_file) || !is_file($class_file)) {
         // search from applications directory
-        $class_file = dirname(__FILE__) . DIRECTORY_SEPARATOR . $class_path . '.php';
+        $class_file = __DIR__ . DIRECTORY_SEPARATOR . 'Applications' . DIRECTORY_SEPARATOR . $class_path . '.php';
     }
     if (is_file($class_file)) {
         require_once($class_file);
@@ -25,4 +25,4 @@ function myloader($name)
     return false;
 }
 
-spl_autoload_register('myloader');
+spl_autoload_register('autoloader');
