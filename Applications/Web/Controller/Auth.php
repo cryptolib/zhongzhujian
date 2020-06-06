@@ -19,8 +19,8 @@ class Auth extends Base
 	 */
 	public function doLogin()
 	{
-		$username = trim(strval($_POST['username']));
-		$password = strval($_POST['password']);
+		$username = trim(strval($this->request->post('username')));
+		$password = strval($this->request->post('password'));
 		if($this->checkLogin($username, $password)){
 			$this->redirect('/');
 		}else{

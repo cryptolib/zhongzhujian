@@ -7,7 +7,7 @@ use \Library\Huobi;
 use \Web\Common\Log;
 use \Web\Common\Template;
 use \Workerman\Connection\AsyncTcpConnection;
-use \Workerman\Protocols\Http;
+use \Workerman\Protocols\Http\Response;
 
 class Base
 {
@@ -24,6 +24,24 @@ class Base
     protected $gateway_sign;
 
     /**
+     * connection
+     * @var string
+     */
+    protected $connection = '';
+
+    /**
+     * request
+     * @var \Workerman\Protocols\Http\Request
+     */
+    protected $request = '';
+
+    /**
+     * response
+     * @var \Workerman\Protocols\Http\Response
+     */
+    protected $response = '';
+
+    /**
      * sessionId
      * @var string
      */
@@ -32,16 +50,32 @@ class Base
     /**
      * 构造函数
      */
-	public function __construct()
+	public function __construct($connection,$request,$response)
 	{
-        Http::sessionStart();
-        $this->sessionId = Http::sessionId();
-        $_SESSION['id'] = $this->sessionId;
+        $this->connection = $connection;
+        $this->request = $request;
+        $this->response = $response;
+        $this->sessionId = $this->request->sessionId();
         if(!$this->isLogin() && !($this instanceof \Web\Controller\Auth)){
             $this->redirect('/login/');
         }
         $this->gateway_sign = \Config\Timer::$gateway_sign;
 	}
+
+    public function setConnection($connection)
+    {
+        $this->connection = $connection;
+    }
+    
+    public function setRequest($request)
+    {
+        $this->request = $request;
+    }
+    
+    public function setResponse($response)
+    {
+        $this->response = $response;
+    }
 
     /**
      * redirect
@@ -50,8 +84,9 @@ class Base
      */
     protected function redirect($url='')
     {
-        Http::header('Location:'.$url, true, 302);
-        Http::end();
+        $this->response->withStatus(302);
+        $this->response->withHeaders(['Location' => $url]);
+        $this->connection->send($this->response);
     }
 
     /**
@@ -60,7 +95,7 @@ class Base
      */
     protected function end()
     {
-        Http::end();
+        //Http::end();
     }
 
     /**
@@ -70,8 +105,7 @@ class Base
      */
     protected function json($data='')
     {
-        echo json_encode($data);
-        Http::end();
+        $this->connection->send(json_encode($data));;
     }
 
     protected function success($data, $msg = '操作成功')
@@ -174,7 +208,7 @@ class Base
 	protected function render($tpl)
 	{
 		$this->view()->setFile(dirname(__DIR__).'/View/'.$tpl);
-		echo $this->view()->render();
+        $this->connection->send($this->view()->render());
 	}
 
     /**
@@ -255,7 +289,6 @@ class Base
      */
     public function notfound()
     {
-        header('HTTP/1.1 404 Not Found');
         $this->render('404.html');
     }
 

@@ -12,16 +12,50 @@
  * @license http://www.opensource.org/licenses/mit-license.php MIT License
  */
 use \Workerman\Worker;
+use \Web\Common\Router;
+use \Workerman\Protocols\Http\Response;
 
 // WebServer
 $web = new Worker('http://'.Config\Web::$address.':'.Config\Web::$port);
 // WebServer数量
 $web->count = 2;
 
-$web->onMessage = function($connection, $data)
+$web->onMessage = function($connection, $request)
 {
-    // 向浏览器发送hello world
-    $connection->send('hello world');
+    $file = __DIR__.DIRECTORY_SEPARATOR.'Root'.$request->path();
+    if(file_exists($file)){
+        if (!empty($if_modified_since = $request->header('if-modified-since'))) {
+            $modified_time = date('D, d M Y H:i:s',  filemtime($file)) . ' ' . \date_default_timezone_get();
+            // 文件未修改则返回304
+            if ($modified_time === $if_modified_since) {
+                $connection->send(new Response(304));
+                return;
+            }
+        }
+        // 文件修改过或者没有if-modified-since头则发送文件
+        $response = (new Response())->withFile($file);
+        $connection->send($response);
+        return;
+    }
+
+    $router = Router::getInstance();
+    $router->setBasePath('/');
+    $router->setConnection($connection);
+    $router->setRequest($request);
+    $router->setResponse(new Response());
+    $router->setNamespace('\Web\Controller');
+
+    $router->set404('Auth@notfound');
+
+    array_walk(\Web\Config\Router::$get, function($value, $key) use($router){
+        $router->get($key, $value);
+    });
+
+    array_walk(\Web\Config\Router::$post, function($value, $key) use($router){
+        $router->post($key, $value);
+    });
+
+    $router->run();
 };
 
 

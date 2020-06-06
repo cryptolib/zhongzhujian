@@ -27,7 +27,7 @@ class Business extends Base
 		$namespace = ucfirst($namespace);
 		$class = ucfirst($class);
 		if(in_array($namespace, $this->namespaces) && in_array($class, $this->classes)){
-			return $this->business('Business\\'.$namespace.'\\'.$class, $method, $_GET);
+			return $this->business('Business\\'.$namespace.'\\'.$class, $method, $this->request->get());
 		}
 		return $this->notfound();
 	}
@@ -61,10 +61,10 @@ class Business extends Base
     public function orders($symbol)
     {
         $params = ['symbol'=>$symbol];
-        if(isset($_GET['start']) && strtotime($_GET['start'])){
+        if(isset($_GET['start']) && strtotime($this->request->get('start'))){
             $params['start'] = $_GET['start'];
         }
-        if(isset($_GET['end']) && strtotime($_GET['end'])){
+        if(isset($_GET['end']) && strtotime($this->request->get('end'))){
             $params['end'] = $_GET['end'];
         }
         $rs = $this->business('Business\Account\Orders', 'run', $params);
@@ -84,10 +84,11 @@ class Business extends Base
     public function kline($symbol, $period)
     {
         $params = ['symbol'=>$symbol, 'period'=>$period];
-        if(isset($_GET['size']) && intval($_GET['size'])){
-            $params['size'] = intval($_GET['size']);
-        }else{
+        $size = intval($this->request->get('size'));
+        if($size == 0){
             $params['size'] = 100;
+        }else{
+            $params['size'] = $size;
         }
         return $this->business('Business\Market\Kline', 'run', $params);
     }

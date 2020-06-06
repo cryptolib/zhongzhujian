@@ -47,6 +47,12 @@ class Router
      */
     private $namespace = '';
 
+    private $connection = null;
+
+    private $request = null;
+
+    private $response = null;
+
     /**
      * 静态实例
      * @var Router
@@ -240,17 +246,17 @@ class Router
     public function getRequestMethod()
     {
         // Take the method as found in $_SERVER
-        $method = $_SERVER['REQUEST_METHOD'];
+        $method = $this->request->method();//$_SERVER['REQUEST_METHOD'];
 
         // If it's a HEAD request override it to being GET and prevent any output, as per HTTP Specification
         // @url http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
-        if ($_SERVER['REQUEST_METHOD'] == 'HEAD') {
+        if ($this->request->method() == 'HEAD') {
             ob_start();
             $method = 'GET';
         }
 
         // If it's a POST request, check for a method override header
-        elseif ($_SERVER['REQUEST_METHOD'] == 'POST') {
+        elseif ($this->request->method() == 'POST') {
             $headers = $this->getRequestHeaders();
             if (isset($headers['X-HTTP-Method-Override']) && in_array($headers['X-HTTP-Method-Override'], ['PUT', 'DELETE', 'PATCH'])) {
                 $method = $headers['X-HTTP-Method-Override'];
@@ -310,7 +316,7 @@ class Router
             if ($this->notFoundCallback) {
                 $this->invoke($this->notFoundCallback);
             } else {
-                header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
+                $this->connection->send($this->response->withStatus(404)->withBody('<title>404 Error</title><h1 style="text-align: center;">404 Not Found</h1>'));
             }
         } // If a route was handled, perform the finish callback (if any)
         else {
@@ -320,10 +326,10 @@ class Router
         }
 
         // If it originally was a HEAD request, clean up after ourselves by emptying the output buffer
-        if ($_SERVER['REQUEST_METHOD'] == 'HEAD') {
+        if ($this->request->method() == 'HEAD') {
             ob_end_clean();
         }
-
+        $this->connection->send($this->response);
         // Return true if a route was handled, false otherwise
         return $numHandled !== 0;
     }
@@ -415,16 +421,14 @@ class Router
             if (class_exists($controller)) {
                 // try to invoke controller method by ReflectionMethod 
                 try {
-                    $ctrl = new \ReflectionMethod($controller, $method);
-                    if ($ctrl->isPublic()) {
-                        if (is_array($params) && !empty($params)) {
-                            $ctrl->invokeArgs(new $ctrl->class, $params);
-                        } else {
-                            $ctrl->invoke(new $ctrl->class);
-                        }
-                        return true;
-                    }
-                } catch(ReflectionException $e) {
+                    $ctrl = new $controller($this->connection,$this->request,$this->response);
+                    $ctrl->setConnection($this->connection);
+                    $ctrl->setRequest($this->request);
+                    $ctrl->setResponse($this->response);
+                    // $ctrl->$method($params);
+                    call_user_func_array(array($ctrl, $method), $params);
+                    unset($ctrl);
+                } catch(\Exception $e) {
                     //TODO somthing here...;
                 }
             }
@@ -440,7 +444,7 @@ class Router
     public function getCurrentUri()
     {
         // Get the current Request URI and remove rewrite base path from it (= allows one to run the router in a sub folder)
-        $uri = substr(rawurldecode($_SERVER['REQUEST_URI']), strlen($this->getBasePath()));
+        $uri = substr(rawurldecode($this->request->uri()), strlen($this->getBasePath()));
 
         // Don't take query params into account on the URL
         if (strstr($uri, '?')) {
@@ -475,5 +479,20 @@ class Router
     public function setBasePath($serverBasePath)
     {
         $this->serverBasePath = $serverBasePath;
+    }
+
+    public function setConnection($connection)
+    {
+        $this->connection = $connection;
+    }
+    
+    public function setRequest($request)
+    {
+        $this->request = $request;
+    }
+    
+    public function setResponse($response)
+    {
+        $this->response = $response;
     }
 }
