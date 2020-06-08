@@ -23,7 +23,10 @@ $web->count = 2;
 $web->onMessage = function($connection, $request)
 {
     $file = __DIR__.DIRECTORY_SEPARATOR.'Root'.$request->path();
-    if(file_exists($file)){
+    if(file_exists($file) && is_dir($file)){
+        $file .= DIRECTORY_SEPARATOR.'index.html';
+    }
+    if(file_exists($file) && is_file($file)){
         if (!empty($if_modified_since = $request->header('if-modified-since'))) {
             $modified_time = date('D, d M Y H:i:s',  filemtime($file)) . ' ' . \date_default_timezone_get();
             // 文件未修改则返回304
