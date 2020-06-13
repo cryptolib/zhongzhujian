@@ -2,17 +2,14 @@
 
 namespace Binance;
 
-use \Library\Db;
-use \Library\DbConnection;
 use \Library\Log;
-use \Workerman\Connection\AsyncTcpConnection;
 
 /**
  * 业务处理基类
  * @author Minch<yeah@minch.me>
  * @since 2019-01-27
  */
-abstract class Base
+abstract class Base extends \Common\Base 
 {
     /**
      * 业务处理实例
@@ -54,19 +51,6 @@ abstract class Base
     abstract public function run($params);
 
     /**
-     * 获取业务处理器实例
-     * @param string $name
-     * @return multitype:
-     */
-    public static function getInstance($name)
-    {
-        if(!isset(self::$instance[$name]) OR !self::$instance[$name]){
-            self::$instance[$name] = new $name();
-        }
-        return self::$instance[$name];
-    }
-
-    /**
      * 业务处理器之间相互调用（同步）
      * @param string $class 类名
      * @param string $method 方法名
@@ -78,37 +62,6 @@ abstract class Base
         $res = call_user_func(array(self::getInstance($class),$method), $params);
         unset($class, $method, $params);
         return $res;
-    }
-
-    /**
-     * 数据库链接
-     * @return DbConnection
-     */
-    protected function db()
-    {
-        return Db::instance(\Config\Database::$master);
-    }
-
-    /**
-     * 网关链接
-     * @return AsyncTcpConnection
-     */
-    protected function gateway()
-    {
-        if(!$this->gateway_conn){
-            $this->gateway_conn = new AsyncTcpConnection('tcp://'.\Config\Gateway::$address.':'.\Config\Gateway::$port);
-            $this->gateway_conn->connect();
-        }
-        return $this->gateway_conn;
-    }
-
-    /**
-     * 共享数据
-     * @return \GlobalData\Client
-     */
-    protected function globaldata()
-    {
-        return \GlobalData\Client::getInstance(\Config\GlobalData::$address.':'.\Config\GlobalData::$port);
     }
 
     /**
@@ -173,69 +126,6 @@ abstract class Base
     protected function log($msg = '')
     {
         return Log::add($msg);
-    }
-
-    /**
-     * 获取共享数据变量
-     * @param string $key 
-     */
-    protected function gdata($key)
-    {
-        return $this->globaldata()->$key;
-    }
-
-    /**
-     * 设置共享数据变量
-     * @param string $key 
-     * @param mixed $value 
-     * @param mixed $expire 
-     * @return mixed 
-     * @throws \Exception
-     */
-    protected function gadd($key, $value, $expire = 0)
-    {
-        return $this->globaldata()->add($key, $value, $expire);
-    }
-
-    /**
-     * 共享数据变量原子操作
-     * @param string $key
-     * @param mixed $old_value
-     * @param mixed $new_value
-     */
-    protected function gcas($key, $old_value, $new_value)
-    {
-        return $this->globaldata()->cas($key, $old_value, $new_value);
-    }
-
-    /**
-     * 设置共享数据变量过期时间
-     * @param string $key 
-     * @param mixed $expire 
-     * @return mixed 
-     */
-    protected function gexpire($key, $expire = 0)
-    {
-        return $this->globaldata()->expire($key, $expire);
-    }
-
-    /**
-     * 设置共享数据变量
-     * @param string $key 
-     * @param mixed $value 
-     */
-    protected function gset($key, $value)
-    {
-        $this->globaldata()->$key = $value;
-    }
-
-    /**
-     * 销毁共享数据变量
-     * @param string $key
-     */
-    protected function gunset($key)
-    {
-        unset($this->globaldata()->$key);
     }
 
     /**

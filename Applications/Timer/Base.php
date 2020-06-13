@@ -2,87 +2,20 @@
 
 namespace Timer;
 
-use \Library\Db;
-use \Library\DbConnection;
 use \Library\Log;
-use \Workerman\Connection\AsyncTcpConnection;
 
 /**
  * 定时器基类
  * @author Minch<yeah@minch.me>
  * @since 2019-01-27
  */
-abstract class Base
+abstract class Base extends \Common\Base
 {
-    /**
-     * 定时器实例
-     * @var array
-     */
-    protected static $instance = array();
-    
-    /**
-     * 异步连接实例
-     * @var \Workerman\Connection\AsyncTcpConnection
-     */
-    protected static $gateway_conn = null;
-    
     /**
      * 正在进行的业务处理
      * @var array
      */
     public static $calling = array();
-
-    /**
-     * 构造函数
-     */
-    protected function __construct()
-    {
-    }
-
-    /**
-     * 获取定时器实例
-     * @param string $name
-     * @param TimerWorker $worker
-     * @return multitype:
-     */
-    public static function getInstance($name)
-    {
-        if(!isset(self::$instance[$name]) or !self::$instance[$name]){
-            self::$instance[$name] = new $name();
-        }
-        return self::$instance[$name];
-    }
-
-    /**
-     * 数据库链接
-     * @return DbConnection
-     */
-    protected function db()
-    {
-        return Db::instance(\Config\Database::$master);
-    }
-
-    /**
-     * 网关链接
-     * @return AsyncTcpConnection
-     */
-    protected function gateway()
-    {
-        if(!$this->gateway_conn){
-            $this->gateway_conn = new AsyncTcpConnection('tcp://'.\Config\Gateway::$address.':'.\Config\Gateway::$port);
-            $this->gateway_conn->connect();
-        }
-        return $this->gateway_conn;
-    }
-
-    /**
-     * 共享数据
-     * @return \GlobalData\Client
-     */
-    protected function globaldata()
-    {
-        return \GlobalData\Client::getInstance(\Config\GlobalData::$address.':'.\Config\GlobalData::$port);
-    }
 
     /**
      * 请求业务处理
@@ -241,16 +174,16 @@ abstract class Base
         if($second>0){
             $interval = $second;
             $key = get_class($this);
-            $gdata = $ndata = $this->globaldata->$key;
+            $gdata = $ndata = $this->gdata($key);
             $ndata['interval'] = $interval;
-            if(!$this->globaldata->cas($key, $gdata, $ndata)){
+            if(!$this->gcas($key, $gdata, $ndata)){
                 return $this->wait($second);
             }
             unset($key, $gdata, $ndata);
         }else{
             $now = time();
             $key = get_class($this);
-            $gdata = $this->globaldata->$key;
+            $gdata = $this->gdata($key);
             $interval = isset($gdata['interval']) ? $gdata['interval'] : 0;
             if(isset($gdata['end_time']) && $gdata['end_time'] != 0){
                 if($gdata['end_time'] < $now){
@@ -265,71 +198,8 @@ abstract class Base
             unset($key, $gdata);
         }
         if($continue && $interval > 0){
-            \Workerman\Lib\Timer::add($interval, array(self::getInstance(get_class($this)),'trigger'), array(), false);
+            \Workerman\Timer::add($interval, array(self::getInstance(get_class($this)),'trigger'), array(), false);
         }
         unset($second, $interval);
-    }
-
-    /**
-     * 获取共享数据变量
-     * @param string $key 
-     */
-    protected function gdata($key)
-    {
-        return $this->globaldata()->$key;
-    }
-
-    /**
-     * 设置共享数据变量
-     * @param string $key 
-     * @param mixed $value 
-     * @param mixed $expire 
-     * @return mixed 
-     * @throws \Exception
-     */
-    protected function gadd($key, $value, $expire = 0)
-    {
-        return $this->globaldata()->add($key, $value, $expire);
-    }
-
-    /**
-     * 共享数据变量原子操作
-     * @param string $key
-     * @param mixed $old_value
-     * @param mixed $new_value
-     */
-    protected function gcas($key, $old_value, $new_value)
-    {
-        return $this->globaldata()->cas($key, $old_value, $new_value);
-    }
-
-    /**
-     * 设置共享数据变量过期时间
-     * @param string $key 
-     * @param mixed $expire 
-     * @return mixed 
-     */
-    protected function gexpire($key, $expire = 0)
-    {
-        return $this->globaldata()->expire($key, $expire);
-    }
-
-    /**
-     * 设置共享数据变量
-     * @param string $key 
-     * @param mixed $value 
-     */
-    protected function gset($key, $value)
-    {
-        $this->globaldata()->$key = $value;
-    }
-
-    /**
-     * 销毁共享数据变量
-     * @param string $key
-     */
-    protected function gunset($key)
-    {
-        unset($this->globaldata()->$key);
     }
 }

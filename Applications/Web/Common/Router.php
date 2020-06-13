@@ -210,35 +210,6 @@ class Router
     }
 
     /**
-     * Get all request headers.
-     *
-     * @return array The request headers
-     */
-    public function getRequestHeaders()
-    {
-        $headers = [];
-
-        // If getallheaders() is available, use that
-        if (function_exists('getallheaders')) {
-            $headers = getallheaders();
-
-            // getallheaders() can return false if something went wrong
-            if ($headers !== false) {
-                return $headers;
-            }
-        }
-
-        // Method getallheaders() not available or went wrong: manually extract 'm
-        foreach ($_SERVER as $name => $value) {
-            if ((substr($name, 0, 5) == 'HTTP_') || ($name == 'CONTENT_TYPE') || ($name == 'CONTENT_LENGTH')) {
-                $headers[str_replace([' ', 'Http'], ['-', 'HTTP'], ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
-            }
-        }
-
-        return $headers;
-    }
-
-    /**
      * Get the request method used, taking overrides into account.
      *
      * @return string The Request method to handle
@@ -257,7 +228,7 @@ class Router
 
         // If it's a POST request, check for a method override header
         elseif ($this->request->method() == 'POST') {
-            $headers = $this->getRequestHeaders();
+            $headers = $this->request->header();
             if (isset($headers['X-HTTP-Method-Override']) && in_array($headers['X-HTTP-Method-Override'], ['PUT', 'DELETE', 'PATCH'])) {
                 $method = $headers['X-HTTP-Method-Override'];
             }
